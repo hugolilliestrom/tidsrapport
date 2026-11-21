@@ -76,6 +76,13 @@ create trigger months_updated_at
   before update on public.months
   for each row execute function public.set_updated_at();
 
+-- ─── Privileges (PostgREST behöver GRANT även för service_role) ───────────
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all on table public.months to postgres, service_role;
+grant all on table public.tasks to postgres, service_role;
+grant all on table public.invoice_items to postgres, service_role;
+-- Inga SELECT/INSERT för anon/authenticated — bara service_role via API.
+
 -- ─── RLS: stäng ute anon/authenticated; endast service_role (bypass) ───────
 alter table public.months enable row level security;
 alter table public.tasks enable row level security;
