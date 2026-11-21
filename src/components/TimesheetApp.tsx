@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Lock,
   Plus,
+  RefreshCw,
   Trash2,
   Unlock,
 } from "lucide-react";
@@ -43,6 +44,21 @@ export function TimesheetApp() {
   const importRef = useRef<HTMLInputElement>(null);
   /** Datum vars uppgiftsrader är utfällda */
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [togglConfigured, setTogglConfigured] = useState(false);
+  const [togglBusy, setTogglBusy] = useState(false);
+  const [togglMsg, setTogglMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/toggl/status", { cache: "no-store" });
+        const j = (await res.json()) as { configured?: boolean };
+        setTogglConfigured(!!j.configured);
+      } catch {
+        setTogglConfigured(false);
+      }
+    })();
+  }, []);
 
   const dates = useMemo(
     () => eachDateInMonth(api.year, api.month),
@@ -257,7 +273,35 @@ export function TimesheetApp() {
               className="ml-2 text-sm border border-slate-200 rounded-md px-2 py-1.5 bg-white tabular-nums"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {togglConfigured && (
+              <button
+                type="button"
+                disabled={togglBusy || !api.isLoaded}
+                onClick={() => {
+                  void (async () => {
+                    setTogglBusy(true);
+                    setTogglMsg(null);
+                    const res = await api.importTogglMonth();
+                    setTogglBusy(false);
+                    if (!res.ok) {
+                      setTogglMsg(res.error || "Toggl-fel");
+                      return;
+                    }
+                    setTogglMsg(
+                      `Toggl: ${res.imported ?? 0} poster (${res.added ?? 0} nya, ${res.updated ?? 0} uppdaterade · ${res.apiCalls ?? "?"} anrop)`
+                    );
+                  })();
+                }}
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                title="Hämtar endast när du klickar (sparar Toggl-kvot)"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${togglBusy ? "animate-spin" : ""}`}
+                />
+                {togglBusy ? "Hämtar…" : "Hämta från Toggl"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => exportMonthExcel(api.data, key)}
@@ -307,6 +351,9 @@ export function TimesheetApp() {
             />
           </div>
         </div>
+        {togglMsg && (
+          <p className="text-xs text-slate-500 -mt-2">{togglMsg}</p>
+        )}
 
         {tab === "att-fakturera" ? (
           <BillableList

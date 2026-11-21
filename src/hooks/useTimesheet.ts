@@ -33,6 +33,10 @@ import {
   saveMonthToCloud,
 } from "@/lib/supabaseApi";
 import { mergeMonthIntoAppData } from "@/lib/supabaseMonth";
+import {
+  mergeTogglIntoAppData,
+  type TogglImportedTask,
+} from "@/lib/togglMerge";
 import { monthKey, parseMonthKey } from "@/lib/holidays";
 import {
   billableTotalsByActivity,
@@ -461,6 +465,53 @@ export function useTimesheet() {
     setData(next);
   }, []);
 
+  /** Manuell Toggl-hämtning för aktuell månad (knapp — inga auto-anrop). */
+  const importTogglMonth = useCallback(async (): Promise<{
+    ok: boolean;
+    added?: number;
+    updated?: number;
+    imported?: number;
+    apiCalls?: number;
+    error?: string;
+  }> => {
+    try {
+      const res = await fetch(
+        `/api/toggl/import?month=${encodeURIComponent(key)}`,
+        { cache: "no-store" }
+      );
+      const json = (await res.json()) as {
+        error?: string;
+        tasks?: TogglImportedTask[];
+        imported?: number;
+        apiCalls?: number;
+      };
+      if (!res.ok) {
+        return { ok: false, error: json.error || `HTTP ${res.status}` };
+      }
+      const tasks = json.tasks ?? [];
+      let added = 0;
+      let updated = 0;
+      setData((prev) => {
+        const merged = mergeTogglIntoAppData(prev, key, tasks);
+        added = merged.added;
+        updated = merged.updated;
+        return merged.data;
+      });
+      return {
+        ok: true,
+        added,
+        updated,
+        imported: json.imported ?? tasks.length,
+        apiCalls: json.apiCalls,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        error: e instanceof Error ? e.message : "Kunde inte hämta Toggl",
+      };
+    }
+  }, [key]);
+
   return {
     data,
     isLoaded,
@@ -492,5 +543,6 @@ export function useTimesheet() {
     replaceAll,
     exportBackup,
     importBackup,
+    importTogglMonth,
   };
 }
