@@ -22,6 +22,7 @@ type TogglProject = {
   name: string;
   color?: string;
   active?: boolean;
+  client_id?: number | null;
 };
 
 function getToken(): string {
@@ -84,14 +85,28 @@ function monthBoundsIso(monthKey: string): { start: string; end: string } {
   };
 }
 
+/** Default = Adshape. Set TOGGL_CLIENT_ID= (empty) to import all clients. */
+function getClientFilterId(): number | null {
+  if (process.env.TOGGL_CLIENT_ID === "") return null;
+  const raw = process.env.TOGGL_CLIENT_ID?.trim() || "68313835";
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function getTogglClientLabel(): string {
+  return process.env.TOGGL_CLIENT_NAME?.trim() || "Adshape";
+}
+
 export async function fetchTogglMonth(monthKey: string): Promise<{
   tasks: TogglImportedTask[];
   apiCalls: number;
+  clientFilter: string | null;
 }> {
   if (!isTogglConfigured()) {
     throw new Error("TOGGL_API_TOKEN saknas");
   }
 
+  const clientId = getClientFilterId();
   const { start, end } = monthBoundsIso(monthKey);
   let apiCalls = 0;
 
@@ -121,12 +136,26 @@ export async function fetchTogglMonth(monthKey: string): Promise<{
     for (const p of projects ?? []) projectMap.set(p.id, p);
   }
 
+  const allowedProjectIds = clientId
+    ? new Set(
+        [...projectMap.values()]
+          .filter((p) => p.client_id === clientId)
+          .map((p) => p.id)
+      )
+    : null;
+
   const [yStr, mStr] = monthKey.split("-");
   const tasks: TogglImportedTask[] = [];
 
   for (const e of active) {
     const date = dateInStockholm(e.start);
     if (!date.startsWith(`${yStr}-${mStr}`)) continue;
+
+    if (allowedProjectIds) {
+      if (e.project_id == null || !allowedProjectIds.has(e.project_id)) {
+        continue;
+      }
+    }
 
     const project = e.project_id != null ? projectMap.get(e.project_id) : undefined;
     const minutes = Math.max(1, Math.round(e.duration / 60));
@@ -143,5 +172,9 @@ export async function fetchTogglMonth(monthKey: string): Promise<{
 
   tasks.sort((a, b) => a.date.localeCompare(b.date) || a.togglId.localeCompare(b.togglId));
 
-  return { tasks, apiCalls };
+  return {
+    tasks,
+    apiCalls,
+    clientFilter: clientId ? getTogglClientLabel() : null,
+  };
 }

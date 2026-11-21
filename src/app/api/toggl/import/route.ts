@@ -22,13 +22,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { tasks, apiCalls } = await fetchTogglMonth(monthKey);
+    const { tasks, apiCalls, clientFilter } = await fetchTogglMonth(monthKey);
     return NextResponse.json({
       configured: true,
       monthKey,
       tasks,
       imported: tasks.length,
       apiCalls,
+      clientFilter,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Toggl-fel";

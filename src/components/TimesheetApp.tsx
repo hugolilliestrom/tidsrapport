@@ -288,18 +288,21 @@ export function TimesheetApp() {
                       setTogglMsg(res.error || "Toggl-fel");
                       return;
                     }
+                    const client = res.clientFilter
+                      ? ` · klient ${res.clientFilter}`
+                      : "";
                     setTogglMsg(
-                      `Toggl: ${res.imported ?? 0} poster (${res.added ?? 0} nya, ${res.updated ?? 0} uppdaterade · ${res.apiCalls ?? "?"} anrop)`
+                      `Toggl${client}: ${res.imported ?? 0} poster (${res.added ?? 0} nya, ${res.updated ?? 0} uppdaterade · ${res.apiCalls ?? "?"} anrop)`
                     );
                   })();
                 }}
                 className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
-                title="Hämtar endast när du klickar (sparar Toggl-kvot)"
+                title="Hämtar bara tid med klienten Adshape (knapp sparar Toggl-kvot)"
               >
                 <RefreshCw
                   className={`w-4 h-4 ${togglBusy ? "animate-spin" : ""}`}
                 />
-                {togglBusy ? "Hämtar…" : "Hämta från Toggl"}
+                {togglBusy ? "Hämtar…" : "Hämta Toggl (Adshape)"}
               </button>
             )}
             <button

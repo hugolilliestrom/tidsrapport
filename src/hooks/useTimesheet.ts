@@ -472,6 +472,7 @@ export function useTimesheet() {
     updated?: number;
     imported?: number;
     apiCalls?: number;
+    clientFilter?: string | null;
     error?: string;
   }> => {
     try {
@@ -484,6 +485,7 @@ export function useTimesheet() {
         tasks?: TogglImportedTask[];
         imported?: number;
         apiCalls?: number;
+        clientFilter?: string | null;
       };
       if (!res.ok) {
         return { ok: false, error: json.error || `HTTP ${res.status}` };
@@ -503,6 +505,7 @@ export function useTimesheet() {
         updated,
         imported: json.imported ?? tasks.length,
         apiCalls: json.apiCalls,
+        clientFilter: json.clientFilter ?? null,
       };
     } catch (e) {
       return {
